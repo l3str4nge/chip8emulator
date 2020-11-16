@@ -8,6 +8,7 @@ import "bufio"
 
 import (
 	"github.com/hajimehoshi/ebiten"
+	"math/rand"
 	//"encoding/binary"
 	"image/color"
 	// "github.com/hajimehoshi/ebiten/i"
@@ -27,28 +28,76 @@ type Chip8 struct {
 	stack [16]uint16
 	stackPointer byte 
 	screen *ebiten.Image
+	timer byte
 
 }
 
 var instructions = map[uint16] func(*Chip8, uint16){
-	// const
-	0x00E0: (*Chip8).OP_0NNN,
-
 	// 1st digit unique 
+	0x0: (*Chip8).OP_0000,
+	0x3: (*Chip8).OP_3XNN,
 	0x6: (*Chip8).OP_6XNN,
 	0xA: (*Chip8).OP_ANNN,
 	0XD: (*Chip8).OP_DXYN,
 	0x2: (*Chip8).OP_2NNN,
 	0xF: (*Chip8).OP_FXXX,
+	0x7: (*Chip8).OP_7XNN,
+	0xC: (*Chip8).OP_CXNN,
+	0xE: (*Chip8).OP_EXXX,
+}
+
+var NULL_OPCODES = map[uint16] func(*Chip8, uint16){
+	0x00E0: (*Chip8).OP_0NNN,
+	0x00EE: (*Chip8).OP_00EE,
 }
 
 var F_OPCODES = map[uint16] func(*Chip8, uint16){
 	0x33: (*Chip8).OP_FX33,
 	0x65: (*Chip8).OP_FX65,
 	0x29: (*Chip8).OP_FX29,
+	0x15: (*Chip8).OP_FX15,
+	0x07: (*Chip8).OP_FX07,
 }
 
-var emulator *Chip8
+var E_OPCODES = map[uint16] func(*Chip8, uint16){
+	0xA1: (*Chip8).OP_EXA1,
+}
+
+var emulator (*Chip8)
+
+func (chip8 *Chip8) OP_EXXX(opcode uint16){
+	fType := opcode & 0x00FF
+	E_OPCODES[fType](chip8, opcode)
+}
+
+func (chip8 *Chip8) OP_EXA1(opcode uint16){
+	fmt.Println("skip if key stored in vx isn;t pressed")
+    // TODO: finish it
+}
+
+func (chip8 *Chip8) OP_3XNN(opcode uint16){
+	vx := (opcode >> 8) & 0x0F
+	value := opcode & 0x00FF
+
+	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode), "skipping instruction if vx ==nn")	
+	if chip8.registers[vx] == byte(value) {
+		fmt.Println("skipped")
+		chip8.programCounter += 2
+	}
+}
+
+func (chip8 *Chip8) OP_CXNN(opcode uint16){
+	vx := (opcode >> 8) & 0x0F
+	value := opcode & 0x00FF
+
+	chip8.registers[vx] = byte(rand.Intn(0xFF)) & byte(value)
+}
+
+func (chip8 *Chip8) OP_FX07(opcode uint16){
+	vx := (opcode >> 8) & 0x0F
+	chip8.registers[vx] = chip8.timer
+	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode), "set timer to Vx")
+}
 
 func (chip8 *Chip8) runCycle(){
 	opcode := chip8.getOpcode()
@@ -56,7 +105,6 @@ func (chip8 *Chip8) runCycle(){
 	fmt.Println("fetched op", fmt.Sprintf("%X", opcode))
 	chip8.decodeAndRunInstruction(opcode)
 	chip8.programCounter += 2
-
 }
 
 func (chip8 *Chip8) getOpcode() uint16{
@@ -67,6 +115,18 @@ func (chip8 *Chip8) getOpcode() uint16{
 func (chip8 *Chip8) decodeAndRunInstruction(opcode uint16){
 	q := opcode >> 12
 	instructions[q](chip8, opcode)
+}
+
+func (chip8 *Chip8) OP_0000(opcode uint16){
+	fType := opcode & 0x00FF
+	NULL_OPCODES[fType](chip8, opcode)
+}
+
+func (chip8 *Chip8) OP_00EE(opcode uint16){
+	chip8.stackPointer--
+	chip8.programCounter = chip8.stack[chip8.stackPointer]
+	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode), "RETURN FROM SUBRUTINE")
+
 }
 
 func (chip8 *Chip8) OP_FXXX(opcode uint16) {
@@ -89,6 +149,13 @@ func (chip8 *Chip8) OP_FX33(opcode uint16){
 	fmt.Println("FX33, opcode", fmt.Sprintf("%X", opcode), "val", value, hundreds, tens, ones, registerNr)
 }
 
+func (chip8 *Chip8) OP_FX15(opcode uint16){
+	vx := (opcode >> 8) & 0x0F
+	chip8.timer = chip8.registers[vx]
+	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode), "timer set")
+
+}
+
 func (chip8 *Chip8) OP_FX65(opcode uint16){
 	registerThreshold := (opcode >> 8) & 0x0F
 	for nr := uint16(0); nr <= registerThreshold; nr++ {
@@ -108,6 +175,13 @@ func (chip8 *Chip8) OP_FX29(opcode uint16){
 	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode))
 	fmt.Println("I:", fmt.Sprintf("%X", chip8.indexRegister))
 
+}
+
+func (chip8 *Chip8) OP_7XNN(opcode uint16){
+	vx := (opcode >> 8) & 0x0F
+	value := opcode & 0x00FF
+	chip8.registers[vx] += byte(value)
+	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode))
 }
 
 func (chip8 *Chip8) OP_0NNN(opcode uint16){
@@ -296,7 +370,7 @@ func main(){
 	}
 
 
-	emulator = &Chip8{memory, 0x200, [16]byte{}, 0, [16]uint16{}, 0, nil}
+	emulator = &Chip8{memory, 0x200, [16]byte{}, 0, [16]uint16{}, 0, nil, 0}
 	game()
 	
 
