@@ -1,9 +1,9 @@
 package main
 
-import "os"
+// import "os"
 import "fmt"
 //import "io"
-import "bufio"
+// import "bufio"
 
 
 import (
@@ -11,13 +11,11 @@ import (
 	"math/rand"
 	//"encoding/binary"
 	"image/color"
+	"github.com/mateuszz0000/chip8emulator/chip8"
 	// "github.com/hajimehoshi/ebiten/i"
     //"github.com/hajimehoshi/ebiten/ebitenutil" // This is required to draw debug texts.
 )
-// ebiten
 
-var BLACK = color.RGBA{255, 255, 255, 0}
-//0xDAB6
 
 
 type Chip8 struct {
@@ -29,13 +27,16 @@ type Chip8 struct {
 	stackPointer byte 
 	screen *ebiten.Image
 	timer byte
+	pixels [64][32]byte
 
 }
 
 var instructions = map[uint16] func(*Chip8, uint16){
 	// 1st digit unique 
 	0x0: (*Chip8).OP_0000,
+	0x1: (*Chip8).OP_1NNN,
 	0x3: (*Chip8).OP_3XNN,
+	0x4: (*Chip8).OP_4XNN,
 	0x6: (*Chip8).OP_6XNN,
 	0xA: (*Chip8).OP_ANNN,
 	0XD: (*Chip8).OP_DXYN,
@@ -44,6 +45,7 @@ var instructions = map[uint16] func(*Chip8, uint16){
 	0x7: (*Chip8).OP_7XNN,
 	0xC: (*Chip8).OP_CXNN,
 	0xE: (*Chip8).OP_EXXX,
+	0x8: (*Chip8).OP_8XXX,
 }
 
 var NULL_OPCODES = map[uint16] func(*Chip8, uint16){
@@ -63,16 +65,54 @@ var E_OPCODES = map[uint16] func(*Chip8, uint16){
 	0xA1: (*Chip8).OP_EXA1,
 }
 
-var emulator (*Chip8)
+var OPCODES_8 = map[uint16] func(*Chip8, uint16){
+	0x2: (*Chip8).OP_8XY2,
+	0x4: (*Chip8).OP_8XY4,
+}
+
+func (chip8 *Chip8) OP_8XXX(opcode uint16){
+	_type := opcode & 0x000F
+	OPCODES_8[_type](chip8, opcode)
+}
+
+func (chip8 *Chip8) OP_8XY2(opcode uint16){
+	vx := (opcode >> 8) & 0x0F
+	vy := (opcode >> 4) & 0x00F
+	chip8.registers[vx] &= chip8.registers[vy]
+
+}
+
+func (chip8 *Chip8) OP_8XY4(opcode uint16){
+	vx := (opcode >> 8) & 0x0F
+	vy := (opcode >> 4) & 0x00F
+
+	vyvalue := chip8.registers[vy]
+
+	sum := chip8.registers[vx] + vyvalue
+
+	if sum > 255 {
+		chip8.registers[0xF] = 1
+	} else {
+		chip8.registers[0xF] = 0
+	}
+
+	chip8.registers[vx] = sum & 0xFF
+}
+
+var emulator *chip8.Chip8
+
+
 
 func (chip8 *Chip8) OP_EXXX(opcode uint16){
 	fType := opcode & 0x00FF
 	E_OPCODES[fType](chip8, opcode)
+	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode))
 }
 
 func (chip8 *Chip8) OP_EXA1(opcode uint16){
 	fmt.Println("skip if key stored in vx isn;t pressed")
-    // TODO: finish it
+	// TODO: finish it
+	//chip8.programCounter += 2
 }
 
 func (chip8 *Chip8) OP_3XNN(opcode uint16){
@@ -83,6 +123,17 @@ func (chip8 *Chip8) OP_3XNN(opcode uint16){
 	if chip8.registers[vx] == byte(value) {
 		fmt.Println("skipped")
 		chip8.programCounter += 2
+	}
+}
+
+func (chip8 *Chip8) OP_4XNN(opcode uint16){
+	nn := opcode & 0x00FF
+	vx := (opcode >> 8) & 0x0F
+
+	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode))
+	if chip8.registers[vx] != byte(nn) {
+		chip8.programCounter += 2
+		fmt.Println("SKIPPED")
 	}
 }
 
@@ -105,6 +156,11 @@ func (chip8 *Chip8) runCycle(){
 	fmt.Println("fetched op", fmt.Sprintf("%X", opcode))
 	chip8.decodeAndRunInstruction(opcode)
 	chip8.programCounter += 2
+
+	if chip8.timer > 0 {
+		chip8.timer--
+	}
+
 }
 
 func (chip8 *Chip8) getOpcode() uint16{
@@ -120,6 +176,11 @@ func (chip8 *Chip8) decodeAndRunInstruction(opcode uint16){
 func (chip8 *Chip8) OP_0000(opcode uint16){
 	fType := opcode & 0x00FF
 	NULL_OPCODES[fType](chip8, opcode)
+}
+
+func (chip8 *Chip8) OP_1NNN(opcode uint16){
+	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode))
+	chip8.programCounter = opcode & 0x0FFF
 }
 
 func (chip8 *Chip8) OP_00EE(opcode uint16){
@@ -195,7 +256,7 @@ func (chip8 *Chip8) OP_6XNN(opcode uint16){
 	value := opcode & 0x00FF
 	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode),
 	 "REG:", registerNr, "VALUE", value)
-
+	chip8.registers[registerNr] = byte(value)
 }
 
 func (chip8 *Chip8) OP_ANNN(opcode uint16){
@@ -215,32 +276,39 @@ func (chip8 *Chip8) OP_DXYN(opcode uint16){
 		"Y:", fmt.Sprintf("%X", y),
 		"nbytes", nbytes)
 
-	chip8.drawSprite(int(x), int(y), int(nbytes), chip8.screen)
+	chip8.drawSprite(int(chip8.registers[x]), int(chip8.registers[y]), int(nbytes), chip8.screen)
 }
 
 func (chip8 *Chip8) drawSprite(x,y, nbytes int, screen *ebiten.Image) {
-	
+	fmt.Println("XY", x, y)
 	for col := 0; col < 8 ; col ++ {
 		for row :=0; row < nbytes; row++ {
 			value := chip8.memory[chip8.indexRegister + uint16(row)]
-		// for row, value := range rows {
 			pixValue := (value >> (7 - col)) & 1
-			
-			if pixValue == 0x1 {	
-				pixelAt := screen.At(col + x, row + y)
-				r, g, b, _ := pixelAt.RGBA()
-				
 
-				if pixelAt == BLACK {
+			fmt.Println(col, row)
+			xx := col +x
+			yy := row + y
+			if xx > 63 {
+				xx = xx - 63
+			}
+
+			if yy > 31 {
+				yy = yy - 31
+			}
+			
+			pixelAt := chip8.pixels[xx][yy]
+			if pixValue == 0x1 {	
+
+				if pixelAt == 0x1 {
 					fmt.Println("COllision")
+					chip8.registers[0xF] = 1
+				} else {
+					chip8.registers[0xF] = 0
 				}
 
-				// XOR on each value of RGB
-				r ^= 255
-				g ^= 255
-				b ^= 255
-				screen.Set(col + x, row + y, color.RGBA{uint8(r), uint8(g), uint8(b), 0})
-			}
+				chip8.pixels[xx][yy] = pixelAt ^ 0xFF
+			}			
 		}
 	}
 }
@@ -249,6 +317,7 @@ func (chip8 *Chip8) drawSprite(x,y, nbytes int, screen *ebiten.Image) {
 func (chip8 *Chip8) OP_2NNN(opcode uint16){
 	// call subroutine
 	subroutineAddr := opcode & 0x0FFF
+	
 	chip8.stack[chip8.stackPointer] = chip8.programCounter
 	chip8.stackPointer++
 	chip8.programCounter = subroutineAddr
@@ -258,7 +327,24 @@ func (chip8 *Chip8) OP_2NNN(opcode uint16){
 func update(screen *ebiten.Image) error {
 	emulator.screen = screen
 	emulator.runCycle()
+
+	emulator.updateScreen()
+
 	return nil
+}
+
+func (chip8 *Chip8) updateScreen(){
+	for x:=0 ; x < 64; x++ {
+		for y:=0 ; y< 32; y++{
+			if chip8.pixels[x][y] == 0 {
+				chip8.screen.Set(x, y, color.Black)
+			}else{
+				chip8.screen.Set(x, y, color.White)
+			}
+			
+		}
+	}
+	
 }
 
 func game() {
@@ -271,106 +357,12 @@ func game() {
 
 
 func main(){
-	var memory [4096]byte
 
-	file, err := os.Open("c8games/pong.rom")
-
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
+	memory := chip8.LoadRomToMemory("c8games/pong.rom")
+	chip8.LoadFontsToMemory(memory)
 
 
-	info, _ := file.Stat()
-
-	var size int64 = info.Size()
-	bytes := make([]byte, size)
-
-	buffer := bufio.NewReader(file)
-	_, err = buffer.Read(bytes)
-
-	
-	// fmt.Println(buffer)
-	// fmt.Println("size", size)
-	// fmt.Println("BYTEEEEEEEEEEEEES", bytes)
-	
-	var programStartAddr int = 0x200
-	fmt.Println("program starts at", programStartAddr)
-	for i := 0; i <=  int(size) -1; i++ {
-		memory[programStartAddr + i] = bytes[i]
-	}
-
-	fmt.Println("PROGRAM LOADS TO MEMORY:", memory)
-
-	// var pc uint16
-	for b := programStartAddr; b <= programStartAddr + int(size); b += 2 {
-		//fmt.Println(memory[b], memory[b+1])
-		opcode := uint16(memory[b]) << 8 | uint16(memory[b+1])
-		hex := fmt.Sprintf("%X", opcode)
-		fmt.Println("Opcode: ", hex)
-	}
-
-	pc1 := memory[0x200]
-	pc2 := memory[0x200 + 1]
-	opcode := uint16(pc1) << 8 | uint16(pc2)
-	fmt.Println(pc1, pc2, pc1 + pc2, opcode)
-
-	var dr uint16 = 0xDAB6
-	cord := dr & 0x0FFF
-	fmt.Println(cord)
-	x := cord >> 8
-	fmt.Println("x", x)
-
-	y := (cord >> 4) & 0x0F
-	fmt.Println("y", y)
-
-	bb := cord & 0x00F
-	fmt.Println("bytes", bb)
-
-	// u := memory[0x2EA]
-
-	for n := 0x2EA ; n <= 0x2EA + int(bb); n++ {
-		fmt.Println(memory[n])
-	}
-
-	// gamesdl2()
-	//Opcode:  DAB6 -> X: A, Y: B, 6bytes, 
-	//Opcode:  DCD6  -> X: D, Y: 6
-	/*
-		memory [4096]byte
-	programCounter uint16
-	registers [16]byte
-	indexRegister uint16
-	stack [16]uint16
-	stackPointer byte 
-
-	*/
-
-	// load fonts
-	var fontset = [80]byte {
-	0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-	0x20, 0x60, 0x20, 0x20, 0x70, // 1
-	0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-	0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-	0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-	0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-	0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-	0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-	0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-	0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-	0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-	0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-	0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-	0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-	0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-	0xF0, 0x80, 0xF0, 0x80, 0x80}  // F
-
-	for x:=0; x < 80; x++ {
-		memory[0x50 + x] = fontset[x]
-	}
-
-
-	emulator = &Chip8{memory, 0x200, [16]byte{}, 0, [16]uint16{}, 0, nil, 0}
+	emulator = &chip8.Chip8{memory, 0x200, [16]byte{}, 0, [16]uint16{}, 0, nil, 0, [64][32]byte{}}
 	game()
 	
 
