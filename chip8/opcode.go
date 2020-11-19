@@ -57,24 +57,24 @@ func (chip8 *Chip8) OP_0NNN(opcode uint16){
 }
 
 func (chip8 *Chip8) OP_00EE(opcode uint16){
-	chip8.stackPointer--
-	chip8.programCounter = chip8.stack[chip8.stackPointer]
+	chip8.StackPointer--
+	chip8.ProgramCounter = chip8.Stack[chip8.StackPointer]
 	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode), "RETURN FROM SUBRUTINE")
 
 }
 
 func (chip8 *Chip8) OP_1NNN(opcode uint16){
 	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode))
-	chip8.programCounter = opcode & 0x0FFF
+	chip8.ProgramCounter = opcode & 0x0FFF
 }
 
 func (chip8 *Chip8) OP_2NNN(opcode uint16){
 	// call subroutine
 	subroutineAddr := opcode & 0x0FFF
 	
-	chip8.stack[chip8.stackPointer] = chip8.programCounter
-	chip8.stackPointer++
-	chip8.programCounter = subroutineAddr
+	chip8.Stack[chip8.StackPointer] = chip8.ProgramCounter
+	chip8.StackPointer++
+	chip8.ProgramCounter = subroutineAddr
 	fmt.Println("Called subroutine at: ", fmt.Sprintf("%X", subroutineAddr))
 }
 
@@ -86,7 +86,7 @@ func (chip8 *Chip8) OP_3XNN(opcode uint16){
 	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode), "skipping instruction if vx ==nn")	
 	if chip8.Registers[vx] == byte(value) {
 		fmt.Println("skipped")
-		chip8.programCounter += 2
+		chip8.ProgramCounter += 2
 	}
 }
 
@@ -96,7 +96,7 @@ func (chip8 *Chip8) OP_4XNN(opcode uint16){
 
 	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode))
 	if chip8.Registers[vx] != byte(nn) {
-		chip8.programCounter += 2
+		chip8.ProgramCounter += 2
 		fmt.Println("SKIPPED")
 	}
 }
@@ -150,8 +150,8 @@ func (chip8 *Chip8) OP_8XY4(opcode uint16){
 
 func (chip8 *Chip8) OP_ANNN(opcode uint16){
 	// Sets NNN to I register
-	chip8.indexRegister = opcode & 0x0FFF
-	fmt.Println("index register value", fmt.Sprintf("%X", chip8.indexRegister))
+	chip8.IndexRegister = opcode & 0x0FFF
+	fmt.Println("index register value", fmt.Sprintf("%X", chip8.IndexRegister))
 }
 
 func (chip8 *Chip8) OP_CXNN(opcode uint16){
@@ -172,7 +172,7 @@ func (chip8 *Chip8) OP_DXYN(opcode uint16){
 		"Y:", fmt.Sprintf("%X", y),
 		"nbytes", nbytes)
 
-	//chip8.drawSprite(int(chip8.registers[x]), int(chip8.registers[y]), int(nbytes), chip8.screen)
+	chip8.drawSprite(int(chip8.Registers[x]), int(chip8.Registers[y]), int(nbytes))
 }
 
 func (chip8 *Chip8) OP_EXXX(opcode uint16){
@@ -200,15 +200,15 @@ func (chip8 *Chip8) OP_FX33(opcode uint16){
 	tens := byte((value / 10) % 10)
 	ones := byte(value % 10)
 
-	chip8.Memory[chip8.indexRegister] = hundreds
-	chip8.Memory[chip8.indexRegister + 1] = tens
-	chip8.Memory[chip8.indexRegister + 2] = ones
+	chip8.Memory[chip8.IndexRegister] = hundreds
+	chip8.Memory[chip8.IndexRegister + 1] = tens
+	chip8.Memory[chip8.IndexRegister + 2] = ones
 
 	fmt.Println("FX33, opcode", fmt.Sprintf("%X", opcode), "val", value, hundreds, tens, ones, registerNr)
 }
 func (chip8 *Chip8) OP_FX15(opcode uint16){
 	vx := (opcode >> 8) & 0x0F
-	chip8.timer = chip8.Registers[vx]
+	chip8.Timer = chip8.Registers[vx]
 	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode), "timer set")
 
 }
@@ -216,7 +216,7 @@ func (chip8 *Chip8) OP_FX15(opcode uint16){
 func (chip8 *Chip8) OP_FX65(opcode uint16){
 	registerThreshold := (opcode >> 8) & 0x0F
 	for nr := uint16(0); nr <= registerThreshold; nr++ {
-		chip8.Registers[nr] = chip8.Memory[chip8.indexRegister + nr]
+		chip8.Registers[nr] = chip8.Memory[chip8.IndexRegister + nr]
 	}
 	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode), "maxREG", registerThreshold)
 }
@@ -227,15 +227,15 @@ func (chip8 *Chip8) OP_FX29(opcode uint16){
 	// TODO: make offset to get location of fonts loaded
 	fontRawAddr := chip8.Registers[vx]
 	fontAdr := (5 * fontRawAddr) + 0x50 // each font has 5 bytes long
-	chip8.indexRegister = uint16(fontAdr)
+	chip8.IndexRegister = uint16(fontAdr)
 
 	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode))
-	fmt.Println("I:", fmt.Sprintf("%X", chip8.indexRegister))
+	fmt.Println("I:", fmt.Sprintf("%X", chip8.IndexRegister))
 
 }
 
 func (chip8 *Chip8) OP_FX07(opcode uint16){
 	vx := (opcode >> 8) & 0x0F
-	chip8.Registers[vx] = chip8.timer
+	chip8.Registers[vx] = chip8.Timer
 	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode), "set timer to Vx")
 }

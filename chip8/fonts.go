@@ -1,7 +1,7 @@
 package chip8
 
 
-
+import "fmt"
 var fontset = [80]byte {
 	0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
 	0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -21,8 +21,12 @@ var fontset = [80]byte {
 	0xF0, 0x80, 0xF0, 0x80, 0x80}  // F
 
 	
-func LoadFontsToMemory(memory [4096]byte){
+func LoadFontsToMemory(memory [4096]byte) [4096]byte{
+
+	fmt.Println("load fonts")
 	for x:=0; x < 80; x++ {
 		memory[0x50 + x] = fontset[x]
 	}
+
+	return memory
 }
