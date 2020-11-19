@@ -14,6 +14,7 @@ type Chip8 struct {
 	StackPointer byte 
 	Screen *ebiten.Image
 	Timer byte
+	SoundTimer byte
 	Pixels [64][32]byte
 
 }

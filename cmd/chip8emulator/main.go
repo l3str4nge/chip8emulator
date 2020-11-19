@@ -18,6 +18,7 @@ func main(){
 			0, 
 			nil, 
 			0, 
+			0,
 			[64][32]byte{}}
 
 	chip8.Emulator.Run()

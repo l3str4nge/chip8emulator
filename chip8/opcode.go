@@ -34,6 +34,7 @@ var F_OPCODES = map[uint16] func(*Chip8, uint16){
 	0x29: (*Chip8).OP_FX29,
 	0x15: (*Chip8).OP_FX15,
 	0x07: (*Chip8).OP_FX07,
+	0x18: (*Chip8).OP_FX18,
 }
 
 var E_OPCODES = map[uint16] func(*Chip8, uint16){
@@ -259,6 +260,8 @@ func (chip8 *Chip8) OP_FX29(opcode uint16){
 
 func (chip8 *Chip8) OP_FX18(opcode uint16){
 	//TODO: FINISH IT
+	vx := (opcode >> 8) & 0x0F
+	chip8.SoundTimer = chip8.Registers[vx]
 }
 
 func (chip8 *Chip8) OP_FX07(opcode uint16){
