@@ -22,7 +22,7 @@ var Emulator (*Chip8) // global pointer to struct
 
 
 func (chip8 *Chip8) Run() {
-	ebiten.SetMaxTPS(60)
+	ebiten.SetMaxTPS(600)
     if err := ebiten.Run(update, 64, 32, 20, "Hello world!"); err != nil {
         panic(err)
     }
@@ -39,8 +39,8 @@ func (chip8 *Chip8) runCycle(){
 	opcode := chip8.getOpcode()
 
 	fmt.Println("fetched op", fmt.Sprintf("%X", opcode))
-	chip8.decodeAndRunInstruction(opcode)
 	chip8.ProgramCounter += 2
+	chip8.decodeAndRunInstruction(opcode)
 
 	if chip8.Timer > 0 {
 		chip8.Timer--

@@ -41,8 +41,10 @@ var E_OPCODES = map[uint16] func(*Chip8, uint16){
 }
 
 var OPCODES_8 = map[uint16] func(*Chip8, uint16){
+	0x0: (*Chip8).OP_8XY0,
 	0x2: (*Chip8).OP_8XY2,
 	0x4: (*Chip8).OP_8XY4,
+	0x5: (*Chip8).OP_8XY5,
 }
 
 
@@ -87,6 +89,8 @@ func (chip8 *Chip8) OP_3XNN(opcode uint16){
 	if chip8.Registers[vx] == byte(value) {
 		fmt.Println("skipped")
 		chip8.ProgramCounter += 2
+	} else {
+		fmt.Println("cannot skip", chip8.Registers[vx], byte(value))
 	}
 }
 
@@ -124,6 +128,12 @@ func (chip8 *Chip8) OP_8XXX(opcode uint16){
 	OPCODES_8[_type](chip8, opcode)
 }
 
+func (chip8 *Chip8) OP_8XY0(opcode uint16){
+	vx := (opcode >> 8) & 0x0F
+	vy := (opcode >> 4) & 0x00F
+	chip8.Registers[vx] = chip8.Registers[vy]
+}
+
 func (chip8 *Chip8) OP_8XY2(opcode uint16){
 	vx := (opcode >> 8) & 0x0F
 	vy := (opcode >> 4) & 0x00F
@@ -146,6 +156,19 @@ func (chip8 *Chip8) OP_8XY4(opcode uint16){
 	}
 
 	chip8.Registers[vx] = sum & 0xFF
+}
+
+func (chip8 *Chip8) OP_8XY5(opcode uint16){
+	vx := (opcode >> 8) & 0x0F
+	vy := (opcode >> 4) & 0x00F
+
+	if chip8.Registers[vx] > chip8.Registers[vy]{
+		chip8.Registers[0xF] = 1
+	}else {
+		chip8.Registers[0xF] = 0
+	}
+
+	chip8.Registers[vx] -= chip8.Registers[vy]
 }
 
 func (chip8 *Chip8) OP_ANNN(opcode uint16){
@@ -234,8 +257,12 @@ func (chip8 *Chip8) OP_FX29(opcode uint16){
 
 }
 
+func (chip8 *Chip8) OP_FX18(opcode uint16){
+	//TODO: FINISH IT
+}
+
 func (chip8 *Chip8) OP_FX07(opcode uint16){
 	vx := (opcode >> 8) & 0x0F
 	chip8.Registers[vx] = chip8.Timer
-	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode), "set timer to Vx")
+	fmt.Println("OPCODE", fmt.Sprintf("%X", opcode), "set timer to Vx", vx)
 }
