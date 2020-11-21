@@ -3,6 +3,7 @@ package chip8
 
 import "fmt"
 import "math/rand"
+import "time"
 
 // opcodes mapping to function
 
@@ -150,13 +151,13 @@ func (chip8 *Chip8) OP_8XY4(opcode uint16){
 
 	sum := chip8.Registers[vx] + vyvalue
 
-	if sum > 255 {
+	if sum > 0xFF {
 		chip8.Registers[0xF] = 1
 	} else {
 		chip8.Registers[0xF] = 0
 	}
 
-	chip8.Registers[vx] = sum & 0xFF
+	chip8.Registers[vx] = sum 
 }
 
 func (chip8 *Chip8) OP_8XY5(opcode uint16){
@@ -181,8 +182,14 @@ func (chip8 *Chip8) OP_ANNN(opcode uint16){
 func (chip8 *Chip8) OP_CXNN(opcode uint16){
 	vx := (opcode >> 8) & 0x0F
 	value := opcode & 0x00FF
+	rand.Seed(time.Now().Unix())
 
-	chip8.Registers[vx] = byte(rand.Intn(0xFF)) & byte(value)
+	elo := rand.Intn(0xFF)
+
+	fmt.Println("EEEEEEEEEEEEEEEEEELo", elo)
+
+
+	chip8.Registers[vx] = byte(elo) & byte(value)
 }
 
 func (chip8 *Chip8) OP_DXYN(opcode uint16){
@@ -206,9 +213,13 @@ func (chip8 *Chip8) OP_EXXX(opcode uint16){
 }
 
 func (chip8 *Chip8) OP_EXA1(opcode uint16){
-	fmt.Println("skip if key stored in vx isn;t pressed")
+	vx := (opcode >> 8) & 0x0F
+	lol := chip8.Registers[vx]
 	// TODO: finish it
-	//chip8.programCounter += 2
+	if chip8.Keyboard[lol] == 0{
+		fmt.Println("key", chip8.Keyboard[vx])
+		chip8.ProgramCounter += 2
+	}
 }
 
 func (chip8 *Chip8) OP_FXXX(opcode uint16) {
@@ -223,13 +234,14 @@ func (chip8 *Chip8) OP_FX33(opcode uint16){
 	hundreds := byte((value / 100) % 10)
 	tens := byte((value / 10) % 10)
 	ones := byte(value % 10)
-
+	
 	chip8.Memory[chip8.IndexRegister] = hundreds
 	chip8.Memory[chip8.IndexRegister + 1] = tens
 	chip8.Memory[chip8.IndexRegister + 2] = ones
 
 	fmt.Println("FX33, opcode", fmt.Sprintf("%X", opcode), "val", value, hundreds, tens, ones, registerNr)
 }
+
 func (chip8 *Chip8) OP_FX15(opcode uint16){
 	vx := (opcode >> 8) & 0x0F
 	chip8.Timer = chip8.Registers[vx]

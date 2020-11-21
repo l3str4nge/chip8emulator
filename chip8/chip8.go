@@ -16,23 +16,29 @@ type Chip8 struct {
 	Timer byte
 	SoundTimer byte
 	Pixels [64][32]byte
-
+	Keyboard [16]byte
 }
 
 var Emulator (*Chip8) // global pointer to struct
 
+var square, _ = ebiten.NewImage(10, 10, ebiten.FilterNearest)
+
 
 func (chip8 *Chip8) Run() {
-	ebiten.SetMaxTPS(600)
-    if err := ebiten.Run(update, 64, 32, 20, "Hello world!"); err != nil {
+	square.Fill(color.White)
+	// ebiten.SetMaxTPS(120)
+    if err := ebiten.Run(update, 640, 320, 1, "Hello world!"); err != nil {
         panic(err)
     }
 }
 
 func update(screen *ebiten.Image) error {
-	Emulator.Screen = screen
-	Emulator.runCycle()
-	Emulator.render()
+	screen.Fill(color.NRGBA{0x00, 0x00, 0x00, 0xff})
+	for elo :=0; elo <10; elo++ {
+		Emulator.runCycle()
+		Emulator.render(screen)
+		CheckKeyboard(Emulator)
+}
 	return nil
 }
 
@@ -46,24 +52,21 @@ func (chip8 *Chip8) runCycle(){
 	if chip8.Timer > 0 {
 		chip8.Timer--
 	}
-
 }
 
-func (chip8 *Chip8) render() {
+func (chip8 *Chip8) render(screen *ebiten.Image) {
 	for x:=0 ; x < 64; x++ {
 		for y:=0 ; y< 32; y++{
-			if chip8.Pixels[x][y] == 0 {
-				chip8.Screen.Set(x, y, color.Black)
-			}else{
-				chip8.Screen.Set(x, y, color.White)
+			if chip8.Pixels[x][y] == 0xFF{ 
+				
+				opts := &ebiten.DrawImageOptions{}
+				opts.GeoM.Translate(float64(x * 10), float64(y*10))
+				screen.DrawImage(square, opts)
 			}
 			
 		}
 	}
 }
-
-
-
 
 func (chip8 *Chip8) getOpcode() uint16{
 	addr := chip8.ProgramCounter
@@ -74,5 +77,6 @@ func (chip8 *Chip8) getOpcode() uint16{
 func (chip8 *Chip8) decodeAndRunInstruction(opcode uint16){
 	q := opcode >> 12
 	opcodes[q](chip8, opcode)
+
 }
 
