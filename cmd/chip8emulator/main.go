@@ -6,7 +6,7 @@ import "github.com/mateuszz0000/chip8emulator/chip8"
 
 func main(){
 
-	memory := chip8.LoadRomToMemory("c8games/BRIX")
+	memory := chip8.LoadRomToMemory("c8games/INVADERS")
 	memory = chip8.LoadFontsToMemory(memory)
 
 	chip8.Emulator = &chip8.Chip8{

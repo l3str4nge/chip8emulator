@@ -56,7 +56,7 @@ func (chip8 *Chip8) runCycle(){
 
 	if chip8.SoundTimer > 0 {
 		chip8.SoundTimer--
-
+		// TODO: beep buzzer
 	}
 }
 
