@@ -5,6 +5,10 @@ import "image/color"
 import "fmt"
 
 
+var WIDTH = 64
+var HEIGHT = 32
+
+
 type Chip8 struct {
 	Memory [4096]byte
 	ProgramCounter uint16
@@ -18,23 +22,26 @@ type Chip8 struct {
 	Pixels [64][32]byte
 	Keyboard [16]byte
 	ClearScreenFlag bool
+	Scale int
 }
 
 var Emulator (*Chip8) // global pointer to struct
 
-var square, _ = ebiten.NewImage(10, 10, ebiten.FilterNearest)
+var square *ebiten.Image
+
 
 func (chip8 *Chip8) Run() {
+	square, _ = ebiten.NewImage(1 * chip8.Scale, 1 * chip8.Scale, ebiten.FilterNearest)
 	square.Fill(color.White)
-	// ebiten.SetMaxTPS(120)
-    if err := ebiten.Run(update, 640, 320, 1, "Hello world!"); err != nil {
+	fmt.Println("lol", square)	
+    if err := ebiten.Run(update, WIDTH * chip8.Scale, HEIGHT * chip8.Scale, 1, "Hello world!"); err != nil {
         panic(err)
     }
 }
 
 func update(screen *ebiten.Image) error {
 	screen.Fill(color.NRGBA{0x00, 0x00, 0x00, 0xff})
-	for elo :=0; elo <15; elo++ {
+	for tick :=0; tick <10; tick++ {
 		Emulator.runCycle()
 		Emulator.checkClearScreen(screen)
 		Emulator.render(screen)
@@ -61,12 +68,12 @@ func (chip8 *Chip8) runCycle(){
 }
 
 func (chip8 *Chip8) render(screen *ebiten.Image) {
-	for x:=0 ; x < 64; x++ {
-		for y:=0 ; y< 32; y++{
+	for x:=0 ; x < WIDTH; x++ {
+		for y:=0 ; y< HEIGHT; y++{
 			if chip8.Pixels[x][y] == 0xFF{ 
 				
 				opts := &ebiten.DrawImageOptions{}
-				opts.GeoM.Translate(float64(x * 10), float64(y*10))
+				opts.GeoM.Translate(float64(x * chip8.Scale), float64(y*chip8.Scale))
 				screen.DrawImage(square, opts)
 			}
 			
@@ -76,8 +83,8 @@ func (chip8 *Chip8) render(screen *ebiten.Image) {
 
 func (chip8 *Chip8) checkClearScreen(screen *ebiten.Image) {
 	if chip8.ClearScreenFlag{
-		for x:=0 ; x < 64; x++ {
-			for y:=0 ; y< 32; y++{
+		for x:=0 ; x < WIDTH; x++ {
+			for y:=0 ; y< HEIGHT; y++{
 				chip8.Pixels[x][y] = 0x00
 			}
 		}
