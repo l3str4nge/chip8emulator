@@ -15,22 +15,21 @@ func KeyReleased(chip8 *Chip8, keyNumber byte){
 
 
 func CheckKeyboard(chip8 *Chip8){
-    handleKey(chip8, ebiten.KeyQ, 0x01)
-    handleKey(chip8, ebiten.KeyW, 0x02)
-    handleKey(chip8, ebiten.KeyE, 0x03)
-    handleKey(chip8, ebiten.KeyR, 0x04)
-    handleKey(chip8, ebiten.KeyT, 0x05)
-    handleKey(chip8, ebiten.KeyY, 0x06)
-    handleKey(chip8, ebiten.KeyU, 0x07)
-    handleKey(chip8, ebiten.KeyI, 0x08)
-    handleKey(chip8, ebiten.KeyO, 0x09)
-    handleKey(chip8, ebiten.KeyP, 0x0A)
-    handleKey(chip8, ebiten.KeyA, 0x0B)
-    handleKey(chip8, ebiten.KeyS, 0x0C)
-    handleKey(chip8, ebiten.KeyD, 0x0D)
-    handleKey(chip8, ebiten.KeyF, 0x0E)
-    handleKey(chip8, ebiten.KeyG, 0x0F)
-    // handleKey(chip8, ebiten.KeyH, 15)
+    handleKey(chip8, ebiten.KeyQ, 0x1)
+    handleKey(chip8, ebiten.KeyW, 0x2)
+    handleKey(chip8, ebiten.KeyE, 0x3)
+    handleKey(chip8, ebiten.KeyR, 0x4)
+    handleKey(chip8, ebiten.KeyT, 0x5)
+    handleKey(chip8, ebiten.KeyY, 0x6)
+    handleKey(chip8, ebiten.KeyU, 0x7)
+    handleKey(chip8, ebiten.KeyI, 0x8)
+    handleKey(chip8, ebiten.KeyO, 0x9)
+    handleKey(chip8, ebiten.KeyP, 0xA)
+    handleKey(chip8, ebiten.KeyA, 0xB)
+    handleKey(chip8, ebiten.KeyS, 0xC)
+    handleKey(chip8, ebiten.KeyD, 0xD)
+    handleKey(chip8, ebiten.KeyF, 0xE)
+    handleKey(chip8, ebiten.KeyG, 0xF)
 }
 
 
@@ -42,7 +41,7 @@ func handleKey(chip8 *Chip8, key ebiten.Key, number byte){
     }
 }
 
-func IsKeyPressed() bool {
+func IsKeyPressed() (bool, int) {
     keys := [16]ebiten.Key{
         ebiten.KeyQ,
         ebiten.KeyW,
@@ -62,11 +61,11 @@ func IsKeyPressed() bool {
 
     }
 
-    for _, k := range keys {
+    for n, k := range keys {
         if ebiten.IsKeyPressed(k){
-            return true
+            return true, n
         }
     }
 
-    return false
+    return false, -1
 }

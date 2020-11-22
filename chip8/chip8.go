@@ -17,12 +17,12 @@ type Chip8 struct {
 	SoundTimer byte
 	Pixels [64][32]byte
 	Keyboard [16]byte
+	ClearScreenFlag bool
 }
 
 var Emulator (*Chip8) // global pointer to struct
 
 var square, _ = ebiten.NewImage(10, 10, ebiten.FilterNearest)
-
 
 func (chip8 *Chip8) Run() {
 	square.Fill(color.White)
@@ -34,8 +34,9 @@ func (chip8 *Chip8) Run() {
 
 func update(screen *ebiten.Image) error {
 	screen.Fill(color.NRGBA{0x00, 0x00, 0x00, 0xff})
-	for elo :=0; elo <10; elo++ {
+	for elo :=0; elo <15; elo++ {
 		Emulator.runCycle()
+		Emulator.checkClearScreen(screen)
 		Emulator.render(screen)
 		CheckKeyboard(Emulator)
 }
@@ -52,6 +53,11 @@ func (chip8 *Chip8) runCycle(){
 	if chip8.Timer > 0 {
 		chip8.Timer--
 	}
+
+	if chip8.SoundTimer > 0 {
+		chip8.SoundTimer--
+
+	}
 }
 
 func (chip8 *Chip8) render(screen *ebiten.Image) {
@@ -66,6 +72,20 @@ func (chip8 *Chip8) render(screen *ebiten.Image) {
 			
 		}
 	}
+}
+
+func (chip8 *Chip8) checkClearScreen(screen *ebiten.Image) {
+	if chip8.ClearScreenFlag{
+		for x:=0 ; x < 64; x++ {
+			for y:=0 ; y< 32; y++{
+				chip8.Pixels[x][y] = 0x00
+			}
+		}
+
+		screen.Fill(color.NRGBA{0x00, 0x00, 0x00, 0xff})
+		chip8.ClearScreenFlag = false
+	}
+	
 }
 
 func (chip8 *Chip8) getOpcode() uint16{
